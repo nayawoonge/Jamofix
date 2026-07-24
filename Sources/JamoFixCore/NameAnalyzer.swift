@@ -9,9 +9,9 @@ public enum IssueKind: String, Codable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .nfd: return "자소분리"
-        case .mojibake: return "인코딩 깨짐"
-        case .windowsUnsafe: return "윈도우 비호환"
+        case .nfd: return L("자소분리", "Jamo split")
+        case .mojibake: return L("인코딩 깨짐", "Mojibake")
+        case .windowsUnsafe: return L("윈도우 비호환", "Windows-unsafe")
         }
     }
 }

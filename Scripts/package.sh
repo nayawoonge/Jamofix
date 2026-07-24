@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="JamoFix"
-VERSION="0.1.1"
+VERSION="0.2.0"
 BUNDLE_ID="dev.jamofix.app"
 DIST="dist"
 APP_DIR="$DIST/$APP.app"
@@ -35,6 +35,12 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key>       <string>$BUNDLE_ID</string>
     <key>CFBundleName</key>             <string>$APP</string>
     <key>CFBundleDisplayName</key>      <string>$APP</string>
+    <key>CFBundleDevelopmentRegion</key> <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>ko</string>
+    </array>
     <key>CFBundlePackageType</key>      <string>APPL</string>
     <key>CFBundleShortVersionString</key> <string>$VERSION</string>
     <key>CFBundleVersion</key>          <string>$VERSION</string>

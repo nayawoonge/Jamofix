@@ -24,7 +24,7 @@ final class AppState: ObservableObject {
     @Published var previewPlans: [RenamePlan] = []
     @Published var showPreview = false
     @Published var history: [RenameRecord] = []
-    @Published var lastActivity: String = "대기 중"
+    @Published var lastActivity: String = L("대기 중", "Idle")
     @Published var fixedCount: Int = 0
     /// 로그인 시 자동 시작 (SMAppService — .app 번들에서만 동작)
     @Published var launchAtLogin: Bool = false
@@ -64,7 +64,8 @@ final class AppState: ObservableObject {
             launchAtLogin = enabled
         } catch {
             launchAtLogin = SMAppService.mainApp.status == .enabled
-            lastActivity = "자동 시작 설정 실패: \(error.localizedDescription)"
+            lastActivity = L("자동 시작 설정 실패: \(error.localizedDescription)",
+                             "Failed to set launch at login: \(error.localizedDescription)")
         }
     }
 
@@ -94,12 +95,12 @@ final class AppState: ObservableObject {
         watcher?.stop()
         watcher = nil
         guard globalEnabled else {
-            lastActivity = "감시 꺼짐"
+            lastActivity = L("감시 꺼짐", "Watching off")
             return
         }
         let paths = folders.filter(\.enabled).map(\.path)
         guard !paths.isEmpty else {
-            lastActivity = "등록된 폴더 없음"
+            lastActivity = L("등록된 폴더 없음", "No folders added")
             return
         }
         let newWatcher = FolderWatcher(paths: paths) { [weak self] changed in
@@ -107,7 +108,7 @@ final class AppState: ObservableObject {
         }
         newWatcher.start()
         watcher = newWatcher
-        lastActivity = "폴더 \(paths.count)개 감시 중"
+        lastActivity = L("폴더 \(paths.count)개 감시 중", "Watching \(paths.count) folder(s)")
     }
 
     private func enqueueChanged(_ paths: [String]) {
@@ -198,7 +199,7 @@ final class AppState: ObservableObject {
             historyStore.add(records)
             history = historyStore.records
             fixedCount += records.count
-            lastActivity = "방금 \(records.count)개 수정됨"
+            lastActivity = L("방금 \(records.count)개 수정됨", "Just fixed \(records.count)")
             // 처리된 항목은 대기열에서 제거
             let donePaths = Set(records.map(\.oldPath))
             pendingPlans.removeAll { donePaths.contains($0.url.path) }
@@ -206,13 +207,13 @@ final class AppState: ObservableObject {
             if notify, settings.notifyOnFix {
                 let sample = records[0]
                 NotificationManager.notify(
-                    title: "파일명 \(records.count)개 수정됨",
-                    body: "\(sample.oldName) → \(sample.newName)"
+                    title: L("파일명 \(records.count)개 수정됨", "Fixed \(records.count) filename(s)"),
+                    body: "\(HangulDisplay.visualize(sample.oldName)) → \(sample.newName)"
                 )
             }
         }
         if !errors.isEmpty {
-            lastActivity = "\(errors.count)개 항목 수정 실패"
+            lastActivity = L("\(errors.count)개 항목 수정 실패", "Failed to fix \(errors.count) item(s)")
         }
     }
 
@@ -222,11 +223,12 @@ final class AppState: ObservableObject {
         let fresh = plans.filter { !existing.contains($0.url.path) }
         pendingPlans.append(contentsOf: fresh)
         if !fresh.isEmpty {
-            lastActivity = "확인 필요한 항목 \(pendingPlans.count)개"
+            lastActivity = L("확인 필요한 항목 \(pendingPlans.count)개", "\(pendingPlans.count) item(s) need review")
             if settings.notifyOnFix {
                 NotificationManager.notify(
-                    title: "확인이 필요한 파일명 \(fresh.count)개",
-                    body: "인코딩 깨짐 등 수동 확인이 필요한 항목이 있습니다"
+                    title: L("확인이 필요한 파일명 \(fresh.count)개", "\(fresh.count) filename(s) need review"),
+                    body: L("인코딩 깨짐 등 수동 확인이 필요한 항목이 있습니다",
+                            "Some items (e.g. mojibake) need manual review")
                 )
             }
         }
@@ -237,9 +239,9 @@ final class AppState: ObservableObject {
             try RenameEngine.undo(record)
             historyStore.remove(record)
             history = historyStore.records
-            lastActivity = "되돌림: \(record.newName)"
+            lastActivity = L("되돌림: \(record.newName)", "Undone: \(record.newName)")
         } catch {
-            lastActivity = "되돌리기 실패: \(record.newName)"
+            lastActivity = L("되돌리기 실패: \(record.newName)", "Undo failed: \(record.newName)")
         }
     }
 

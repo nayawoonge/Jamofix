@@ -7,16 +7,16 @@ struct MainView: View {
     var body: some View {
         TabView {
             FoldersTab()
-                .tabItem { Label("폴더", systemImage: "folder") }
+                .tabItem { Label(L("폴더", "Folders"), systemImage: "folder") }
             PendingTab()
                 .tabItem {
-                    Label("확인 대기", systemImage: "exclamationmark.triangle")
+                    Label(L("확인 대기", "Pending"), systemImage: "exclamationmark.triangle")
                 }
                 .badge(state.pendingPlans.count)
             HistoryTab()
-                .tabItem { Label("히스토리", systemImage: "clock.arrow.circlepath") }
+                .tabItem { Label(L("히스토리", "History"), systemImage: "clock.arrow.circlepath") }
             SettingsTab()
-                .tabItem { Label("설정", systemImage: "gearshape") }
+                .tabItem { Label(L("설정", "Settings"), systemImage: "gearshape") }
         }
         .padding()
         .sheet(isPresented: $state.showPreview) {
@@ -34,7 +34,7 @@ struct FoldersTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Toggle("전체 감시", isOn: $state.globalEnabled)
+                Toggle(L("전체 감시", "Watch all"), isOn: $state.globalEnabled)
                     .toggleStyle(.switch)
                 Spacer()
                 Text(state.lastActivity)
@@ -54,12 +54,12 @@ struct FoldersTab: View {
                         VStack(alignment: .leading) {
                             Text(folder.displayName)
                                 .fontWeight(.medium)
-                            Text(folder.recursive ? "하위 폴더 포함" : "이 폴더만")
+                            Text(folder.recursive ? L("하위 폴더 포함", "Includes subfolders") : L("이 폴더만", "This folder only"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("스캔") { state.manualScan(folder: folder) }
+                        Button(L("스캔", "Scan")) { state.manualScan(folder: folder) }
                         Button(role: .destructive) {
                             state.removeFolder(folder)
                         } label: {
@@ -72,8 +72,9 @@ struct FoldersTab: View {
             .overlay {
                 if state.folders.isEmpty {
                     ContentUnavailableCompat(
-                        title: "감시할 폴더를 추가하세요",
-                        subtitle: "추가한 폴더에서 자소분리·인코딩 깨짐이 자동으로 감지됩니다"
+                        title: L("감시할 폴더를 추가하세요", "Add a folder to watch"),
+                        subtitle: L("추가한 폴더에서 자소분리·인코딩 깨짐이 자동으로 감지됩니다",
+                                    "Jamo splits and mojibake are detected automatically in added folders")
                     )
                 }
             }
@@ -82,10 +83,10 @@ struct FoldersTab: View {
                 Button {
                     pickFolder()
                 } label: {
-                    Label("폴더 추가", systemImage: "plus")
+                    Label(L("폴더 추가", "Add Folder"), systemImage: "plus")
                 }
                 Spacer()
-                Button("전체 스캔 (미리보기)") { state.manualScanAll() }
+                Button(L("전체 스캔 (미리보기)", "Scan All (preview)")) { state.manualScanAll() }
                     .disabled(state.folders.isEmpty)
             }
         }
@@ -96,7 +97,7 @@ struct FoldersTab: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
-        panel.prompt = "감시 폴더로 추가"
+        panel.prompt = L("감시 폴더로 추가", "Add as watched folder")
         if panel.runModal() == .OK {
             for url in panel.urls {
                 state.addFolder(url)
@@ -113,7 +114,8 @@ struct PendingTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("자동 수정하기엔 확신이 낮아 확인이 필요한 항목입니다 (인코딩 깨짐 복구 등)")
+            Text(L("자동 수정하기엔 확신이 낮아 확인이 필요한 항목입니다 (인코딩 깨짐 복구 등)",
+                   "Items that need review before fixing (e.g. mojibake recovery)"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -121,21 +123,22 @@ struct PendingTab: View {
                 .overlay {
                     if state.pendingPlans.isEmpty {
                         ContentUnavailableCompat(
-                            title: "확인할 항목 없음",
-                            subtitle: "감시 중 확신이 낮은 수정 제안이 생기면 여기에 쌓입니다"
+                            title: L("확인할 항목 없음", "Nothing to review"),
+                            subtitle: L("감시 중 확신이 낮은 수정 제안이 생기면 여기에 쌓입니다",
+                                        "Low-confidence fix suggestions collected while watching appear here")
                         )
                     }
                 }
 
             HStack {
-                Button("모두 선택") { selected = Set(state.pendingPlans.map(\.id)) }
-                Button("선택 해제") { selected = [] }
+                Button(L("모두 선택", "Select All")) { selected = Set(state.pendingPlans.map(\.id)) }
+                Button(L("선택 해제", "Deselect")) { selected = [] }
                 Spacer()
-                Button("선택 항목 무시") {
+                Button(L("선택 항목 무시", "Ignore Selected")) {
                     state.pendingPlans.removeAll { selected.contains($0.id) }
                     selected = []
                 }
-                Button("선택 항목 수정") {
+                Button(L("선택 항목 수정", "Fix Selected")) {
                     let plans = state.pendingPlans.filter { selected.contains($0.id) }
                     state.applyPlans(plans)
                     state.pendingPlans.removeAll { selected.contains($0.id) }
@@ -156,25 +159,25 @@ struct PreviewSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("스캔 결과 — 변경할 항목을 선택하세요")
+            Text(L("스캔 결과 — 변경할 항목을 선택하세요", "Scan results — select items to fix"))
                 .font(.headline)
 
             PlanListView(plans: state.previewPlans, selected: $selected)
                 .overlay {
                     if state.previewPlans.isEmpty {
                         ContentUnavailableCompat(
-                            title: "문제 없음 ✨",
-                            subtitle: "모든 파일명이 정상입니다"
+                            title: L("문제 없음 ✨", "All good ✨"),
+                            subtitle: L("모든 파일명이 정상입니다", "All filenames look fine")
                         )
                     }
                 }
 
             HStack {
-                Button("모두 선택") { selected = Set(state.previewPlans.map(\.id)) }
+                Button(L("모두 선택", "Select All")) { selected = Set(state.previewPlans.map(\.id)) }
                 Spacer()
-                Button("닫기") { state.showPreview = false }
+                Button(L("닫기", "Close")) { state.showPreview = false }
                     .keyboardShortcut(.cancelAction)
-                Button("선택 항목 수정") {
+                Button(L("선택 항목 수정", "Fix Selected")) {
                     let plans = state.previewPlans.filter { selected.contains($0.id) }
                     state.applyPlans(plans)
                     state.showPreview = false
@@ -275,24 +278,25 @@ struct HistoryTab: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("되돌리기") { state.undo(record) }
+                    Button(L("되돌리기", "Undo")) { state.undo(record) }
                 }
                 .padding(.vertical, 2)
             }
             .overlay {
                 if state.history.isEmpty {
                     ContentUnavailableCompat(
-                        title: "기록 없음",
-                        subtitle: "파일명이 수정되면 여기에 기록되고 언제든 되돌릴 수 있습니다"
+                        title: L("기록 없음", "No history"),
+                        subtitle: L("파일명이 수정되면 여기에 기록되고 언제든 되돌릴 수 있습니다",
+                                    "Fixes are recorded here and can be undone anytime")
                     )
                 }
             }
 
             HStack {
-                Text("총 \(state.history.count)건")
+                Text(L("총 \(state.history.count)건", "\(state.history.count) total"))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("기록 지우기", role: .destructive) { state.clearHistory() }
+                Button(L("기록 지우기", "Clear History"), role: .destructive) { state.clearHistory() }
                     .disabled(state.history.isEmpty)
             }
         }
@@ -306,39 +310,44 @@ struct SettingsTab: View {
 
     var body: some View {
         Form {
-            Section("일반") {
-                Toggle("로그인 시 자동 시작", isOn: Binding(
+            Section(L("일반", "General")) {
+                Toggle(L("로그인 시 자동 시작", "Launch at login"), isOn: Binding(
                     get: { state.launchAtLogin },
                     set: { state.setLaunchAtLogin($0) }
                 ))
                 .disabled(!state.isRunningInBundle)
                 if !state.isRunningInBundle {
-                    Text("개발 실행(swift run)에서는 사용할 수 없습니다. Scripts/package.sh로 만든 앱에서 켜세요.")
+                    Text(L("개발 실행(swift run)에서는 사용할 수 없습니다. Scripts/package.sh로 만든 앱에서 켜세요.",
+                           "Unavailable in dev runs (swift run). Enable it in an app built with Scripts/package.sh."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Toggle("백그라운드 수정 시 알림", isOn: $state.settings.notifyOnFix)
-                Text("감시 중인 폴더에서 파일명이 자동 수정되거나 확인이 필요한 항목이 생기면 알림 센터로 알려줍니다.")
+                Toggle(L("백그라운드 수정 시 알림", "Notify on background fixes"), isOn: $state.settings.notifyOnFix)
+                Text(L("감시 중인 폴더에서 파일명이 자동 수정되거나 확인이 필요한 항목이 생기면 알림 센터로 알려줍니다.",
+                       "Sends a Notification Center alert when files are auto-fixed or need review in watched folders."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Section("자동 수정") {
-                Toggle("자소분리(NFD) 자동 수정", isOn: $state.settings.autoFixNFD)
-                Text("감시 중인 폴더에서 자소분리된 파일명을 발견하면 즉시 NFC로 정규화합니다. 안전한 변환입니다.")
+            Section(L("자동 수정", "Auto-fix")) {
+                Toggle(L("자소분리(NFD) 자동 수정", "Auto-fix jamo split (NFD)"), isOn: $state.settings.autoFixNFD)
+                Text(L("감시 중인 폴더에서 자소분리된 파일명을 발견하면 즉시 NFC로 정규화합니다. 안전한 변환입니다.",
+                       "Normalizes jamo-split names to NFC immediately when found. This conversion is safe."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle("인코딩 깨짐 자동 수정", isOn: $state.settings.autoFixMojibake)
-                Text("⚠️ 깨진 파일명(예: ¿ù°£º¸°í¼­.hwp)을 자동 복구합니다. 드물게 오탐 가능성이 있어 기본은 수동 확인입니다.")
+                Toggle(L("인코딩 깨짐 자동 수정", "Auto-fix mojibake"), isOn: $state.settings.autoFixMojibake)
+                Text(L("⚠️ 깨진 파일명(예: ¿ù°£º¸°í¼­.hwp)을 자동 복구합니다. 드물게 오탐 가능성이 있어 기본은 수동 확인입니다.",
+                       "⚠️ Auto-recovers corrupted names (e.g. ¿ù°£º¸°í¼­.hwp). Rare false positives are possible, so manual review is the default."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Section("수동 스캔") {
-                Toggle("윈도우 비호환 문자 검사 포함", isOn: $state.settings.checkWindowsCompat)
-                Text("스캔 시 윈도우 금지 문자(\\ / : * ? \" < > |), 예약어(CON 등), 끝 공백/마침표도 검사해 치환을 제안합니다.")
+            Section(L("수동 스캔", "Manual scan")) {
+                Toggle(L("윈도우 비호환 문자 검사 포함", "Include Windows-compatibility check"), isOn: $state.settings.checkWindowsCompat)
+                Text(L("스캔 시 윈도우 금지 문자(\\ / : * ? \" < > |), 예약어(CON 등), 끝 공백/마침표도 검사해 치환을 제안합니다.",
+                       "When scanning, also checks Windows-forbidden characters (\\ / : * ? \" < > |), reserved names (CON, etc.), and trailing spaces/dots, and proposes replacements."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

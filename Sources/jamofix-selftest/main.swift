@@ -180,6 +180,15 @@ withTempDir { tempDir in
     check(plan2 != nil, "진짜 NFD 디스크 엔트리는 계획 생성")
 }
 
+section("로컬라이제이션")
+
+// 시스템 언어에 따라 한/영 중 하나가 나오되, 빈 문자열은 아니어야 함
+let sample = L("폴더", "Folders")
+check(sample == "폴더" || sample == "Folders", "L() 언어 선택", sample)
+check(!IssueKind.nfd.label.isEmpty, "IssueKind.label 비어있지 않음")
+// 현재 시스템 언어 상태 출력 (참고용)
+print("  (현재 Loc.isKorean = \(Loc.isKorean), 예시 label = \(IssueKind.nfd.label))")
+
 section("자소분리 시각화")
 
 let visualized = HangulDisplay.visualize("한글.txt".decomposedStringWithCanonicalMapping)

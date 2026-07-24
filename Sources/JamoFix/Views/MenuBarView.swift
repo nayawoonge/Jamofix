@@ -6,14 +6,14 @@ struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Toggle("파일명 감시", isOn: $state.globalEnabled)
+        Toggle(L("파일명 감시", "Watch filenames"), isOn: $state.globalEnabled)
 
         Text(state.lastActivity)
 
         Divider()
 
         if state.folders.isEmpty {
-            Text("등록된 폴더 없음")
+            Text(L("등록된 폴더 없음", "No folders added"))
         } else {
             ForEach(state.folders) { folder in
                 Toggle(folder.displayName, isOn: Binding(
@@ -26,12 +26,13 @@ struct MenuBarView: View {
         Divider()
 
         if !state.pendingPlans.isEmpty {
-            Button("확인 필요한 항목 \(state.pendingPlans.count)개 보기…") {
+            Button(L("확인 필요한 항목 \(state.pendingPlans.count)개 보기…",
+                     "Review \(state.pendingPlans.count) pending item(s)…")) {
                 openMainWindow()
             }
         }
 
-        Button("전체 스캔 (미리보기)") {
+        Button(L("전체 스캔 (미리보기)", "Scan All (preview)")) {
             state.manualScanAll()
             openMainWindow()
         }
@@ -39,8 +40,8 @@ struct MenuBarView: View {
 
         Divider()
 
-        Button("메인 창 열기") { openMainWindow() }
-        Button("종료") { NSApp.terminate(nil) }
+        Button(L("메인 창 열기", "Open Main Window")) { openMainWindow() }
+        Button(L("종료", "Quit")) { NSApp.terminate(nil) }
     }
 
     private func openMainWindow() {
