@@ -70,7 +70,12 @@ final class AppState: ObservableObject {
 
     /// 메뉴바 아이콘 표시 설정. Dock도 숨겨진 상태에서 메뉴바까지 끄려 하면
     /// 앱에 접근할 수단이 사라지므로 Dock을 자동으로 되살린다.
+    ///
+    /// no-op 가드 필수: MenuBarExtra(isInserted:)가 body 평가 중 현재 값을 그대로
+    /// 다시 write-back하는데, @Published는 값이 같아도 대입만 하면 objectWillChange를
+    /// 발생시켜 무한 렌더 루프(100% CPU)에 빠진다. 값이 실제로 바뀔 때만 대입한다.
     func setShowMenuBarIcon(_ on: Bool) {
+        guard on != showMenuBarIcon else { return }
         if !on && !showDockIcon {
             showDockIcon = true  // 최소 하나의 접근 경로 보장
         }
@@ -80,6 +85,7 @@ final class AppState: ObservableObject {
     /// Dock 아이콘 표시 설정. 같은 이유로 메뉴바가 꺼진 상태에서 Dock까지 끄면
     /// 메뉴바를 자동으로 되살린다.
     func setShowDockIcon(_ on: Bool) {
+        guard on != showDockIcon else { return }
         if !on && !showMenuBarIcon {
             showMenuBarIcon = true
         }
