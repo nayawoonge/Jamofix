@@ -1,0 +1,20 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# 빌드 산출물 (릴리즈로 재생성 가능)
+dist/
+
+# 생성된 아이콘 (Scripts/make-icon.swift로 재생성)
+Resources/AppIcon.icns
+Resources/AppIcon.iconset/
+
+# macOS
+.DS_Store
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/

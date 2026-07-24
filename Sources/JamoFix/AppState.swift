@@ -1,0 +1,269 @@
+import Foundation
+import SwiftUI
+import ServiceManagement
+import JamoFixCore
+
+@MainActor
+final class AppState: ObservableObject {
+
+    // MARK: - 상태
+
+    /// 전체 감시 켜기/끄기 (메뉴바 토글)
+    @Published var globalEnabled: Bool {
+        didSet { persist(); rebuildWatcher() }
+    }
+    @Published var folders: [WatchedFolder] {
+        didSet { persist(); rebuildWatcher() }
+    }
+    @Published var settings: FixSettings {
+        didSet { persist() }
+    }
+    /// 자동 수정하지 않고 사용자 확인을 기다리는 항목 (인코딩 깨짐 등)
+    @Published var pendingPlans: [RenamePlan] = []
+    /// 수동 스캔 결과 미리보기 (시트로 표시)
+    @Published var previewPlans: [RenamePlan] = []
+    @Published var showPreview = false
+    @Published var history: [RenameRecord] = []
+    @Published var lastActivity: String = "대기 중"
+    @Published var fixedCount: Int = 0
+    /// 로그인 시 자동 시작 (SMAppService — .app 번들에서만 동작)
+    @Published var launchAtLogin: Bool = false
+
+    /// .app 번들로 실행 중인지 (swift run이면 false — 자동 시작/알림 비활성)
+    let isRunningInBundle = NotificationManager.isRunningInBundle
+
+    private let historyStore = HistoryStore()
+    private var watcher: FolderWatcher?
+    private var pendingChangedPaths: Set<String> = []
+    private var debounceTask: Task<Void, Never>?
+
+    // MARK: - 초기화
+
+    init() {
+        let defaults = UserDefaults.standard
+        globalEnabled = defaults.object(forKey: "globalEnabled") as? Bool ?? true
+        folders = Self.decode([WatchedFolder].self, from: defaults, key: "folders") ?? []
+        settings = Self.decode(FixSettings.self, from: defaults, key: "settings") ?? FixSettings()
+        history = historyStore.records
+        if isRunningInBundle {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+        rebuildWatcher()
+    }
+
+    // MARK: - 로그인 시 자동 시작
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard isRunningInBundle else { return }
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            launchAtLogin = enabled
+        } catch {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+            lastActivity = "자동 시작 설정 실패: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - 폴더 관리
+
+    func addFolder(_ url: URL) {
+        let path = url.path
+        guard !folders.contains(where: { $0.path == path }) else { return }
+        folders.append(WatchedFolder(path: path))
+        // 새 폴더는 즉시 한 번 스캔 (자동 수정 정책 적용)
+        scanAsWatch(folderURL: url, recursive: true)
+    }
+
+    func removeFolder(_ folder: WatchedFolder) {
+        folders.removeAll { $0.id == folder.id }
+        pendingPlans.removeAll { $0.url.path.hasPrefix(folder.path) }
+    }
+
+    func toggleFolder(_ folder: WatchedFolder) {
+        guard let idx = folders.firstIndex(where: { $0.id == folder.id }) else { return }
+        folders[idx].enabled.toggle()
+    }
+
+    // MARK: - 감시
+
+    private func rebuildWatcher() {
+        watcher?.stop()
+        watcher = nil
+        guard globalEnabled else {
+            lastActivity = "감시 꺼짐"
+            return
+        }
+        let paths = folders.filter(\.enabled).map(\.path)
+        guard !paths.isEmpty else {
+            lastActivity = "등록된 폴더 없음"
+            return
+        }
+        let newWatcher = FolderWatcher(paths: paths) { [weak self] changed in
+            Task { @MainActor in self?.enqueueChanged(changed) }
+        }
+        newWatcher.start()
+        watcher = newWatcher
+        lastActivity = "폴더 \(paths.count)개 감시 중"
+    }
+
+    private func enqueueChanged(_ paths: [String]) {
+        pendingChangedPaths.formUnion(paths)
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            guard !Task.isCancelled else { return }
+            self?.processChangedPaths()
+        }
+    }
+
+    /// 변경된 개별 경로를 검사해 자동 수정 or 확인 대기열에 추가
+    private func processChangedPaths() {
+        let paths = pendingChangedPaths
+        pendingChangedPaths = []
+
+        let detect = NameAnalyzer.Options(fixNFD: true, fixMojibake: true, sanitizeWindows: false)
+        var autoPlans: [RenamePlan] = []
+        var confirmPlans: [RenamePlan] = []
+
+        for path in paths {
+            guard FileManager.default.fileExists(atPath: path) else { continue }
+            guard let plan = RenameEngine.planFor(url: URL(fileURLWithPath: path), options: detect) else { continue }
+            if isAutoApplicable(plan.analysis) {
+                autoPlans.append(plan)
+            } else {
+                confirmPlans.append(plan)
+            }
+        }
+
+        applyPlans(autoPlans, notify: true)
+        queueForConfirmation(confirmPlans)
+    }
+
+    /// 새 폴더 등록/시작 시 전체 스캔 — 감시 이벤트와 같은 자동 정책 적용
+    func scanAsWatch(folderURL: URL, recursive: Bool) {
+        let detect = NameAnalyzer.Options(fixNFD: true, fixMojibake: true, sanitizeWindows: false)
+        let plans = RenameEngine.scan(folder: folderURL, recursive: recursive, options: detect)
+        let auto = plans.filter { isAutoApplicable($0.analysis) }
+        let confirm = plans.filter { !isAutoApplicable($0.analysis) }
+        applyPlans(auto, notify: true)
+        queueForConfirmation(confirm)
+    }
+
+    private func isAutoApplicable(_ analysis: NameAnalysis) -> Bool {
+        analysis.issues.allSatisfy { issue in
+            switch issue {
+            case .nfd: return settings.autoFixNFD
+            case .mojibake: return settings.autoFixMojibake
+            case .windowsUnsafe: return false  // 윈도우 호환은 항상 수동 확인
+            }
+        }
+    }
+
+    // MARK: - 수동 스캔 (미리보기 → 승인)
+
+    func manualScan(folder: WatchedFolder) {
+        let options = NameAnalyzer.Options(
+            fixNFD: true,
+            fixMojibake: true,
+            sanitizeWindows: settings.checkWindowsCompat
+        )
+        previewPlans = RenameEngine.scan(folder: folder.url, recursive: folder.recursive, options: options)
+        showPreview = true
+    }
+
+    func manualScanAll() {
+        let options = NameAnalyzer.Options(
+            fixNFD: true,
+            fixMojibake: true,
+            sanitizeWindows: settings.checkWindowsCompat
+        )
+        previewPlans = folders.filter(\.enabled).flatMap {
+            RenameEngine.scan(folder: $0.url, recursive: $0.recursive, options: options)
+        }
+        showPreview = true
+    }
+
+    // MARK: - 실행 / 되돌리기
+
+    /// - Parameter notify: 백그라운드(감시) 경로에서 호출될 때만 true — 알림 센터 알림 발송
+    func applyPlans(_ plans: [RenamePlan], notify: Bool = false) {
+        guard !plans.isEmpty else { return }
+        var errors: [(RenamePlan, Error)] = []
+        let records = RenameEngine.apply(plans, errors: &errors)
+        if !records.isEmpty {
+            historyStore.add(records)
+            history = historyStore.records
+            fixedCount += records.count
+            lastActivity = "방금 \(records.count)개 수정됨"
+            // 처리된 항목은 대기열에서 제거
+            let donePaths = Set(records.map(\.oldPath))
+            pendingPlans.removeAll { donePaths.contains($0.url.path) }
+
+            if notify, settings.notifyOnFix {
+                let sample = records[0]
+                NotificationManager.notify(
+                    title: "파일명 \(records.count)개 수정됨",
+                    body: "\(sample.oldName) → \(sample.newName)"
+                )
+            }
+        }
+        if !errors.isEmpty {
+            lastActivity = "\(errors.count)개 항목 수정 실패"
+        }
+    }
+
+    private func queueForConfirmation(_ plans: [RenamePlan]) {
+        guard !plans.isEmpty else { return }
+        let existing = Set(pendingPlans.map { $0.url.path })
+        let fresh = plans.filter { !existing.contains($0.url.path) }
+        pendingPlans.append(contentsOf: fresh)
+        if !fresh.isEmpty {
+            lastActivity = "확인 필요한 항목 \(pendingPlans.count)개"
+            if settings.notifyOnFix {
+                NotificationManager.notify(
+                    title: "확인이 필요한 파일명 \(fresh.count)개",
+                    body: "인코딩 깨짐 등 수동 확인이 필요한 항목이 있습니다"
+                )
+            }
+        }
+    }
+
+    func undo(_ record: RenameRecord) {
+        do {
+            try RenameEngine.undo(record)
+            historyStore.remove(record)
+            history = historyStore.records
+            lastActivity = "되돌림: \(record.newName)"
+        } catch {
+            lastActivity = "되돌리기 실패: \(record.newName)"
+        }
+    }
+
+    func clearHistory() {
+        historyStore.clear()
+        history = []
+    }
+
+    // MARK: - 영속화
+
+    private func persist() {
+        let defaults = UserDefaults.standard
+        defaults.set(globalEnabled, forKey: "globalEnabled")
+        Self.encode(folders, to: defaults, key: "folders")
+        Self.encode(settings, to: defaults, key: "settings")
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, from defaults: UserDefaults, key: String) -> T? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private static func encode<T: Encodable>(_ value: T, to defaults: UserDefaults, key: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        defaults.set(data, forKey: key)
+    }
+}
