@@ -40,6 +40,7 @@ root causes.
 - 🔀 **Conflict handling** — appends ` (1)` on name clashes; safely works around APFS's normalization-insensitive lookups
 - 🎛 **Menu bar toggle** — enable/disable globally or per folder
 - 🔔 **Notifications & launch at login** — background-fix alerts, auto start on login
+- 🫥 **Appearance options** — hide the menu bar (top) icon and/or the Dock (bottom) icon to run quietly (at least one is always kept)
 - 🌐 **Korean / English** — UI switches automatically based on the macOS system language
 
 ## Screenshots

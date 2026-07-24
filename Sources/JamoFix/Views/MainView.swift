@@ -330,6 +330,21 @@ struct SettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section(L("표시", "Appearance")) {
+                Toggle(L("메뉴바 아이콘 표시", "Show menu bar icon"), isOn: Binding(
+                    get: { state.showMenuBarIcon },
+                    set: { state.setShowMenuBarIcon($0) }
+                ))
+                Toggle(L("Dock 아이콘 표시", "Show Dock icon"), isOn: Binding(
+                    get: { state.showDockIcon },
+                    set: { state.setShowDockIcon($0) }
+                ))
+                Text(L("메뉴바 아이콘을 끄면 상단 상태바에서, Dock 아이콘을 끄면 하단 Dock·앱 전환기(⌘Tab)에서 사라집니다. 둘 다 끌 수는 없습니다 — 앱에 접근할 방법이 없어지기 때문입니다.",
+                       "Turning off the menu bar icon hides it from the top status bar; turning off the Dock icon hides it from the Dock and app switcher (⌘Tab). You can't hide both — that would leave no way to reach the app."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section(L("자동 수정", "Auto-fix")) {
                 Toggle(L("자소분리(NFD) 자동 수정", "Auto-fix jamo split (NFD)"), isOn: $state.settings.autoFixNFD)
                 Text(L("감시 중인 폴더에서 자소분리된 파일명을 발견하면 즉시 NFC로 정규화합니다. 안전한 변환입니다.",

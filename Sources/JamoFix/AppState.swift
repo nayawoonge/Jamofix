@@ -29,8 +29,21 @@ final class AppState: ObservableObject {
     /// 로그인 시 자동 시작 (SMAppService — .app 번들에서만 동작)
     @Published var launchAtLogin: Bool = false
 
+    /// 메뉴바(상단 상태바) 아이콘 표시 여부
+    @Published var showMenuBarIcon: Bool {
+        didSet { persistAppearance() }
+    }
+    /// Dock(하단) 아이콘 표시 여부. false면 .accessory로 전환해 Dock·앱 전환기에서 숨김
+    @Published var showDockIcon: Bool {
+        didSet { persistAppearance(); applyDockVisibility() }
+    }
+
     /// .app 번들로 실행 중인지 (swift run이면 false — 자동 시작/알림 비활성)
     let isRunningInBundle = NotificationManager.isRunningInBundle
+
+    /// AppDelegate가 실행 시점에 읽는 Dock 표시 기본값 (앱 로딩 순서상 UserDefaults 직접 참조)
+    static let showDockIconKey = "showDockIcon"
+    static let showMenuBarIconKey = "showMenuBarIcon"
 
     private let historyStore = HistoryStore()
     private var watcher: FolderWatcher?
@@ -44,11 +57,52 @@ final class AppState: ObservableObject {
         globalEnabled = defaults.object(forKey: "globalEnabled") as? Bool ?? true
         folders = Self.decode([WatchedFolder].self, from: defaults, key: "folders") ?? []
         settings = Self.decode(FixSettings.self, from: defaults, key: "settings") ?? FixSettings()
+        showMenuBarIcon = defaults.object(forKey: Self.showMenuBarIconKey) as? Bool ?? true
+        showDockIcon = defaults.object(forKey: Self.showDockIconKey) as? Bool ?? true
         history = historyStore.records
         if isRunningInBundle {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
         rebuildWatcher()
+    }
+
+    // MARK: - 표시 옵션 (메뉴바 / Dock 아이콘)
+
+    /// 메뉴바 아이콘 표시 설정. Dock도 숨겨진 상태에서 메뉴바까지 끄려 하면
+    /// 앱에 접근할 수단이 사라지므로 Dock을 자동으로 되살린다.
+    func setShowMenuBarIcon(_ on: Bool) {
+        if !on && !showDockIcon {
+            showDockIcon = true  // 최소 하나의 접근 경로 보장
+        }
+        showMenuBarIcon = on
+    }
+
+    /// Dock 아이콘 표시 설정. 같은 이유로 메뉴바가 꺼진 상태에서 Dock까지 끄면
+    /// 메뉴바를 자동으로 되살린다.
+    func setShowDockIcon(_ on: Bool) {
+        if !on && !showMenuBarIcon {
+            showMenuBarIcon = true
+        }
+        showDockIcon = on
+    }
+
+    /// Dock 표시 여부를 실제 activation policy에 반영.
+    /// .regular = Dock에 표시, .accessory = Dock·Cmd-Tab에서 숨김 (메뉴바 유틸리티 모드)
+    func applyDockVisibility() {
+        guard let app = NSApp else { return }
+        let target: NSApplication.ActivationPolicy = showDockIcon ? .regular : .accessory
+        if app.activationPolicy() != target {
+            app.setActivationPolicy(target)
+            if target == .regular {
+                app.activate(ignoringOtherApps: true)
+            }
+        }
+    }
+
+    private func persistAppearance() {
+        let defaults = UserDefaults.standard
+        defaults.set(showMenuBarIcon, forKey: Self.showMenuBarIconKey)
+        defaults.set(showDockIcon, forKey: Self.showDockIconKey)
     }
 
     // MARK: - 로그인 시 자동 시작
