@@ -43,13 +43,10 @@
 - 🌐 **한/영 지원** — macOS 시스템 언어에 따라 UI가 자동 전환
 
 ## 스크린샷
+| Preview | Setting |
+|---|---|
+| ![Preview](docs/images/screenshot-preview.png) | ![Setting](docs/images/screenshot-setting.png) |
 
-| 폴더 감시 | 미리보기 | 메뉴바 |
-|---|---|---|
-| ![폴더](docs/images/screenshot-folders.png) | ![미리보기](docs/images/screenshot-preview.png) | ![메뉴바](docs/images/screenshot-menubar.png) |
-
-> 위 이미지는 자리표시자입니다. `Scripts/capture-screenshots.sh`를 실행하면 실제 앱
-> 창을 클릭해 캡처하고 자동으로 교체합니다.
 
 ## 설치
 
