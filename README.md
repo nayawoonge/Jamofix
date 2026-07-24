@@ -91,35 +91,6 @@ macOS의 파일명 정규화는 함정이 많습니다. JamoFix가 실제로 부
 - **FSEvents는 rename 이전의 NFD 경로로 이벤트를 줍니다.** 이걸 그대로 믿으면 같은 파일을
   무한히 다시 고치는 루프가 생깁니다. → 디스크의 실제 엔트리 이름을 재검증합니다.
 
-## 프로젝트 구조
-
-```
-Sources/
-  JamoFixCore/          # UI 없는 코어 (테스트 대상)
-    NameAnalyzer.swift  #   NFD 감지, mojibake 복구, 윈도우 호환성
-    RenameEngine.swift  #   dry-run 스캔, 실행, 충돌 처리, 되돌리기
-    FolderWatcher.swift #   FSEvents 폴더 감시
-    HistoryStore.swift  #   변경 기록 영속화
-    HangulDisplay.swift #   자소분리 시각화 (ㅎㅏㄴㄱㅡㄹ)
-  JamoFix/              # SwiftUI 앱 (메뉴바 + 메인 창)
-  jamofix-selftest/     # Xcode 없이 실행하는 테스트 러너
-Scripts/
-  package.sh            # .app + DMG 빌드
-  make-icon.swift       # 앱 아이콘 생성
-  make-banner.swift     # README 배너 생성
-  capture-screenshots.sh # 스크린샷 캡처 도우미
-```
-
-## 로드맵
-
-- [ ] Finder Quick Action ("이 폴더 지금 정규화")
-- [ ] ZIP 압축 해제 시 CP949 파일명 복구
-- [ ] 윈도우 MAX_PATH(260자) 초과 경로 경고
-- [x] 로그인 시 자동 시작 (`SMAppService`)
-- [x] 알림 센터 연동
-- [x] 앱 번들(.app) + DMG 패키징
-- [ ] Developer ID 서명 + 공증
-
-## 라이선스
+## License
 
 MIT

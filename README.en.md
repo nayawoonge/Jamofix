@@ -44,12 +44,9 @@ root causes.
 
 ## Screenshots
 
-| Folder watching | Preview | Menu bar |
-|---|---|---|
-| ![folders](docs/images/screenshot-folders.png) | ![preview](docs/images/screenshot-preview.png) | ![menubar](docs/images/screenshot-menubar.png) |
-
-> These are placeholders. Run `Scripts/capture-screenshots.sh` to click on the real app
-> windows and replace them automatically.
+| Preview | Setting |
+|---|---|
+| ![Preview](docs/images/screenshot-preview.png) | ![Setting](docs/images/screenshot-setting.png) |
 
 ## Install
 
@@ -94,34 +91,6 @@ Filename normalization on macOS is full of traps. What JamoFix actually had to s
 - **FSEvents delivers the pre-rename NFD path.** Trusting it re-fixes the same file
   forever in a loop. → We re-verify against the real on-disk directory entry.
 
-## Project layout
-
-```
-Sources/
-  JamoFixCore/          # UI-less core (tested)
-    NameAnalyzer.swift  #   NFD detection, mojibake recovery, Windows compat
-    RenameEngine.swift  #   dry-run scan, apply, conflict handling, undo
-    FolderWatcher.swift #   FSEvents folder watcher
-    HistoryStore.swift  #   persisted change history
-    HangulDisplay.swift #   jamo-separation visualization (ㅎㅏㄴㄱㅡㄹ)
-  JamoFix/              # SwiftUI app (menu bar + main window)
-  jamofix-selftest/     # test runner that runs without Xcode
-Scripts/
-  package.sh            # build .app + DMG
-  make-icon.swift       # generate app icon
-  make-banner.swift     # generate README banner
-  capture-screenshots.sh # screenshot capture helper
-```
-
-## Roadmap
-
-- [ ] Finder Quick Action ("Normalize this folder now")
-- [ ] CP949 filename recovery when unzipping
-- [ ] Warn on paths exceeding Windows MAX_PATH (260 chars)
-- [x] Launch at login (`SMAppService`)
-- [x] Notification Center integration
-- [x] App bundle (.app) + DMG packaging
-- [ ] Developer ID signing + notarization
 
 ## License
 
