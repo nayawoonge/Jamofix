@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="JamoFix"
-VERSION="0.2.0"
+VERSION="0.2.1"
 BUNDLE_ID="dev.jamofix.app"
 DIST="dist"
 APP_DIR="$DIST/$APP.app"
